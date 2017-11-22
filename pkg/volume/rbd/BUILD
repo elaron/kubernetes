@@ -14,6 +14,7 @@ go_library(
         "doc.go",
         "rbd.go",
         "rbd_util.go",
+        "rbd_backend_kernel.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/volume/rbd",
     deps = [
