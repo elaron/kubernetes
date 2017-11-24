@@ -152,6 +152,10 @@ func (plugin *rbdPlugin) createMounterFromVolumeSpecAndPod(spec *volume.Spec, po
 	if err != nil {
 		return nil, err
 	}
+	backendType, err := getVolumeBackendType(spec)
+	if err != nil {
+		return nil, err
+	}
 
 	secretName, secretNs, err := getSecretNameAndNamespace(spec, pod.Namespace)
 	if err != nil {
@@ -175,12 +179,13 @@ func (plugin *rbdPlugin) createMounterFromVolumeSpecAndPod(spec *volume.Spec, po
 	}
 
 	return &rbdMounter{
-		rbd:     newRBD("", spec.Name(), img, pool, ro, plugin, &RBDUtil{}),
-		Mon:     mon,
-		Id:      id,
-		Keyring: keyring,
-		Secret:  secret,
-		fsType:  fstype,
+		rbd:         newRBD("", spec.Name(), img, pool, ro, plugin, &RBDUtil{}),
+		Mon:         mon,
+		Id:          id,
+		Keyring:     keyring,
+		Secret:      secret,
+		fsType:      fstype,
+		backendType: backendType,
 	}, nil
 }
 
@@ -239,6 +244,10 @@ func (plugin *rbdPlugin) newMounterInternal(spec *volume.Spec, podUID types.UID,
 	if err != nil {
 		return nil, err
 	}
+	backendType, err := getVolumeBackendType(spec)
+	if err != nil {
+		return nil, err
+	}
 
 	return &rbdMounter{
 		rbd:          newRBD(podUID, spec.Name(), img, pool, ro, plugin, manager),
@@ -248,6 +257,7 @@ func (plugin *rbdPlugin) newMounterInternal(spec *volume.Spec, podUID types.UID,
 		Secret:       secret,
 		fsType:       fstype,
 		mountOptions: volume.MountOptionFromSpec(spec),
+		BackendType:  backendType,
 	}, nil
 }
 
@@ -521,6 +531,7 @@ type rbdMounter struct {
 	Id            string
 	Keyring       string
 	Secret        string
+	BackendType   string
 	fsType        string
 	adminSecret   string
 	adminId       string
@@ -588,6 +599,11 @@ func (c *rbdUnmounter) TearDownAt(dir string) error {
 	}
 	glog.V(3).Infof("rbd: successfully teardown at %s", dir)
 	return nil
+}
+
+func (plugin *rbdPlugin) execCommandStdOut(command string, args []string) ([]byte, error) {
+	cmd := plugin.exe.Command(command, args...)
+	return cmd.Output()
 }
 
 func getVolumeSourceMonitors(spec *volume.Spec) ([]string, error) {
@@ -667,6 +683,17 @@ func getVolumeSourceReadOnly(spec *volume.Spec) (bool, error) {
 	}
 
 	return false, fmt.Errorf("Spec does not reference a RBD volume type")
+}
+
+func getVolumeBackendType(spec *volume.Spec) (string, error) {
+	if spec.Volume != nil && spec.Volume.RBD != nil {
+		return spec.Volume.RBD.BackendType, nil
+	} else if spec.PersistentVolume != nil &&
+		spec.PersistentVolume.Spec.RBD != nil {
+		return spec.PersistentVolume.Spec.RBD.BackendType, nil
+	}
+
+	return "", fmt.Errorf("Spec does not reference a RBD volume type")
 }
 
 func parsePodSecret(pod *v1.Pod, secretName string, kubeClient clientset.Interface) (string, error) {

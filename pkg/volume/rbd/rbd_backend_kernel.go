@@ -36,6 +36,18 @@ const (
 	kubeLockMagic = "kubelet_lock_magic_"
 )
 
+// IsSupported show whether we have the kernel rbd plugin available or not
+func (rk *RBDKernel) IsSupported(plugin *rbdPlugin) bool {
+	exec := plugin.host.GetExec(plugin.GetPluginName())
+	if _, err := exec.Run("modprobe", []string{"rbd"}); err != nil {
+		return false
+	}
+	if _, err := os.Stat("/sys/bus/rbd/devices"); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 // search /sys/bus for rbd device that matches given pool and image
 func getDevFromImageAndPool(pool, image string) (string, bool) {
 	// /sys/bus/rbd/devices/X/name and /sys/bus/rbd/devices/X/pool
@@ -135,15 +147,13 @@ func (rk *RBDKernel) MapDisk(b rbdMounter) (string, error) {
 	return devicePath, nil
 }
 
-func (rk *RBDKernel) UnmapDisk(b rbdMounter, device string) error {
+func (rk *RBDKernel) UnmapDisk(plugin *rbdPlugin, device string) error {
 	// rbd unmap
-	_, err := b.plugin.execCommand("rbd", []string{"unmap", device})
+	exec := plugin.host.GetExec(plugin.GetPluginName())
+	output, err := exec.Run("rbd", "unmap", device)
 	if err != nil {
-		return fmt.Errorf("rbd: failed to unmap device %s:Error: %v", device, err)
+		return rbdErrors(err, fmt.Errorf("rbd: failed to unmap device %s, error %v, rbd output: %v", device, err, output))
 	}
-
-	rk.defencing(b)
-
-	glog.Infof("rbd: successfully unmap device %s", device)
+	glog.V(3).Infof("rbd: successfully unmap device %s", device)
 	return nil
 }

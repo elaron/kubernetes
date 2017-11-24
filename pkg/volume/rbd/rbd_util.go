@@ -73,6 +73,28 @@ type RBDUtil struct{}
 
 var _ diskManager = &RBDUtil{}
 
+type diskMapper interface {
+	IsSupported(plugin *rbdPlugin) bool
+	MapDisk(disk rbdMounter) (string, error)
+	UnmapDisk(plugin *rbdPlugin, mntPath string) error
+}
+
+func createDiskMapper(b rbdMounter) (diskMapper, error) {
+	glog.V(1).Infof("rbd: creating diskMapper for backendType %s", b.BackendType)
+	switch strings.ToLower(b.BackendType) {
+	case "krbd":
+		return &RBDKernel{}, nil
+	case "nbd":
+		nbdMapper := &RBDNbd{}
+		if false == nbdMapper.IsSupported(b) {
+			glog.V(1).Infof("rbd: the rbd-nbd is not availble, fallbacking to krbd")
+			return &RBDKernel{}, nil
+		}
+		return nbdMapper, nil
+	}
+	return nil, fmt.Errorf("unsupported backendType %s", b.BackendType)
+}
+
 func (util *RBDUtil) MakeGlobalPDName(rbd rbd) string {
 	return makePDNameInternal(rbd.plugin.host, rbd.Pool, rbd.Image)
 }
@@ -209,7 +231,10 @@ func (util *RBDUtil) AttachDisk(b rbdMounter) (string, error) {
 	}
 
 	//map a block device
-	mapper := &RBDKernel
+	mapper, err := createDiskMapper(b)
+	if err != nil {
+		return "", fmt.Errorf("rbd: cannot create diskMapper: %v", err)
+	}
 	devicePath, err := mapper.MapDisk(b)
 	if err != nil {
 		return "", fmt.Errorf("rbd: cannot map block device, %v", err)
@@ -226,12 +251,8 @@ func (util *RBDUtil) DetachDisk(plugin *rbdPlugin, deviceMountPath string, devic
 		return fmt.Errorf("DetachDisk failed , device is empty")
 	}
 	// rbd unmap
-	exec := plugin.host.GetExec(plugin.GetPluginName())
-	output, err := exec.Run("rbd", "unmap", device)
-	if err != nil {
-		return rbdErrors(err, fmt.Errorf("rbd: failed to unmap device %s, error %v, rbd output: %v", device, err, output))
-	}
-	glog.V(3).Infof("rbd: successfully unmap device %s", device)
+	mapper, err := createDiskMapper()
+	mapper.UnmapDisk(plugin, device)
 
 	// Currently, we don't persist rbd info on the disk, but for backward
 	// compatbility, we need to clean it if found.
