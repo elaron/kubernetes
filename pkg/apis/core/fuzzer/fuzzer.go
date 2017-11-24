@@ -360,6 +360,10 @@ var Funcs = func(codecs runtimeserializer.CodecFactory) []interface{} {
 			if r.Keyring == "" {
 				r.Keyring = "/etc/ceph/keyring"
 			}
+			r.BackendType = c.RandString()
+			if r.BackendType == "" {
+				r.BackendType = "krbd"
+			}
 		},
 		func(r *core.RBDPersistentVolumeSource, c fuzz.Continue) {
 			r.RBDPool = c.RandString()
@@ -373,6 +377,10 @@ var Funcs = func(codecs runtimeserializer.CodecFactory) []interface{} {
 			r.Keyring = c.RandString()
 			if r.Keyring == "" {
 				r.Keyring = "/etc/ceph/keyring"
+			}
+			r.BackendType = c.RandString()
+			if r.BackendType == "" {
+				r.BackendType = "krbd"
 			}
 		},
 		func(obj *core.HostPathVolumeSource, c fuzz.Continue) {
