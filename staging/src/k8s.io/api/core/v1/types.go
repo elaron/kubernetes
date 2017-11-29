@@ -910,6 +910,13 @@ type RBDPersistentVolumeSource struct {
 	// More info: https://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it
 	// +optional
 	ReadOnly bool `json:"readOnly,omitempty" protobuf:"varint,8,opt,name=readOnly"`
+	// Optional: BackendType is client type to use for mapping RBDImage to a block device,
+	// default is "krbd".
+	// Tip: Ensure that the backend is supported by the host operating system.
+	// Examples: "krbd", "rbd-nbd". Implicitly inferred to be "krbd" if unspecified.
+	// More info: http://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it
+	// +optional
+	BackendType string `json:"backendType,omitempty" protobuf:"bytes,9,opt,name=backendType"`
 }
 
 // Represents a cinder volume resource in Openstack.

@@ -41,7 +41,6 @@ import (
 
 const (
 	imageWatcherStr = "watcher="
-	kubeLockMagic   = "kubelet_lock_magic_"
 )
 
 var (
@@ -79,20 +78,20 @@ type diskMapper interface {
 	UnmapDisk(plugin *rbdPlugin, mntPath string) error
 }
 
-func createDiskMapper(b rbdMounter) (diskMapper, error) {
-	glog.V(1).Infof("rbd: creating diskMapper for backendType %s", b.BackendType)
-	switch strings.ToLower(b.BackendType) {
-	case "krbd":
+func createDiskMapper(backendType string, plugin *rbdPlugin) (diskMapper, error) {
+	glog.V(1).Infof("rbd: creating diskMapper for backendType %s", backendType)
+	switch strings.ToLower(backendType) {
+	case BACKEND_TYPE_KRBD:
 		return &RBDKernel{}, nil
-	case "nbd":
+	case BACKEND_TYPE_NBD:
 		nbdMapper := &RBDNbd{}
-		if false == nbdMapper.IsSupported(b) {
+		if false == nbdMapper.IsSupported(plugin) {
 			glog.V(1).Infof("rbd: the rbd-nbd is not availble, fallbacking to krbd")
 			return &RBDKernel{}, nil
 		}
 		return nbdMapper, nil
 	}
-	return nil, fmt.Errorf("unsupported backendType %s", b.BackendType)
+	return nil, fmt.Errorf("unsupported backendType %s", backendType)
 }
 
 func (util *RBDUtil) MakeGlobalPDName(rbd rbd) string {
@@ -219,7 +218,6 @@ func (util *RBDUtil) rbdLock(b rbdMounter, lock bool) error {
 // AttachDisk attaches the disk on the node.
 // If Volume is not read-only, acquire a lock on image first.
 func (util *RBDUtil) AttachDisk(b rbdMounter) (string, error) {
-	var output []byte
 
 	globalPDPath := util.MakeGlobalPDName(*b.rbd)
 	if pathExists, pathErr := volutil.PathExists(globalPDPath); pathErr != nil {
@@ -231,7 +229,7 @@ func (util *RBDUtil) AttachDisk(b rbdMounter) (string, error) {
 	}
 
 	//map a block device
-	mapper, err := createDiskMapper(b)
+	mapper, err := createDiskMapper(b.BackendType, b.plugin)
 	if err != nil {
 		return "", fmt.Errorf("rbd: cannot create diskMapper: %v", err)
 	}
@@ -243,6 +241,13 @@ func (util *RBDUtil) AttachDisk(b rbdMounter) (string, error) {
 	return devicePath, nil
 }
 
+func getBackendTypeByDevice(device string) string {
+	if true == strings.Contains(device, "nbd"){
+		return BACKEND_TYPE_NBD
+	}
+	return BACKEND_TYPE_KRBD
+}
+
 // DetachDisk detaches the disk from the node.
 // It detaches device from the node if device is provided, and removes the lock
 // if there is persisted RBD info under deviceMountPath.
@@ -251,7 +256,8 @@ func (util *RBDUtil) DetachDisk(plugin *rbdPlugin, deviceMountPath string, devic
 		return fmt.Errorf("DetachDisk failed , device is empty")
 	}
 	// rbd unmap
-	mapper, err := createDiskMapper()
+	backendType := getBackendTypeByDevice(device)
+	mapper, err := createDiskMapper(backendType, plugin)
 	mapper.UnmapDisk(plugin, device)
 
 	// Currently, we don't persist rbd info on the disk, but for backward

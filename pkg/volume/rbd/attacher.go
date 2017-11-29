@@ -205,12 +205,15 @@ func (detacher *rbdDetacher) UnmountDevice(deviceMountPath string) error {
 		}
 		glog.V(3).Infof("rbd: successfully umount device mountpath %s", deviceMountPath)
 	}
+
 	glog.V(4).Infof("rbd: detaching device %s", devicePath)
-	err = detacher.manager.DetachDisk(detacher.plugin, deviceMountPath, devicePath)
+	backendType := BACKEND_TYPE_KRBD
+	err = detacher.manager.DetachDisk(backendType, detacher.plugin, deviceMountPath, devicePath)
 	if err != nil {
 		return err
 	}
 	glog.V(3).Infof("rbd: successfully detach device %s", devicePath)
+
 	err = os.Remove(deviceMountPath)
 	if err != nil {
 		return err

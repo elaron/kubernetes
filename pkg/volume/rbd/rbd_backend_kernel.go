@@ -39,7 +39,7 @@ const (
 // IsSupported show whether we have the kernel rbd plugin available or not
 func (rk *RBDKernel) IsSupported(plugin *rbdPlugin) bool {
 	exec := plugin.host.GetExec(plugin.GetPluginName())
-	if _, err := exec.Run("modprobe", []string{"rbd"}); err != nil {
+	if _, err := exec.Run("modprobe", "rbd"); err != nil {
 		return false
 	}
 	if _, err := os.Stat("/sys/bus/rbd/devices"); os.IsNotExist(err) {
@@ -94,7 +94,6 @@ type RBDKernel struct {
 }
 
 func (rk *RBDKernel) MapDisk(b rbdMounter) (string, error) {
-	var err error
 	var output []byte
 
 	devicePath, found := waitForPath(b.Pool, b.Image, 1)
@@ -106,7 +105,7 @@ func (rk *RBDKernel) MapDisk(b rbdMounter) (string, error) {
 
 		// Currently, we don't acquire advisory lock on image, but for backward
 		// compatibility, we need to check if the image is being used by nodes running old kubelet.
-		found, rbdOutput, err := util.rbdStatus(&b)
+		found, rbdOutput, err := rk.rbdStatus(&b)
 		if err != nil {
 			return "", fmt.Errorf("error: %v, rbd output: %v", err, rbdOutput)
 		}

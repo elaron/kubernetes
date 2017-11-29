@@ -41,7 +41,7 @@ type diskManager interface {
 	// is returned. Otherwise, an error will be returned.
 	AttachDisk(disk rbdMounter) (string, error)
 	// Detaches the disk from the kubelet's host machine.
-	DetachDisk(plugin *rbdPlugin, deviceMountPath string, device string) error
+	DetachDisk(backendType string, plugin *rbdPlugin, deviceMountPath string, device string) error
 	// Creates a rbd image.
 	CreateImage(provisioner *rbdVolumeProvisioner) (r *v1.RBDPersistentVolumeSource, volumeSizeGB int, err error)
 	// Deletes a rbd image.

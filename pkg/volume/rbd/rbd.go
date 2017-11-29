@@ -39,6 +39,11 @@ var (
 	supportedFeatures = sets.NewString("layering")
 )
 
+var (
+	BACKEND_TYPE_KRBD = "krbd"
+	BACKEND_TYPE_NBD = "nbd"
+)
+
 // This is the primary entrypoint for volume plugins.
 func ProbeVolumePlugins() []volume.VolumePlugin {
 	return []volume.VolumePlugin{&rbdPlugin{}}
@@ -95,11 +100,18 @@ func (plugin *rbdPlugin) GetVolumeName(spec *volume.Spec) (string, error) {
 		img), nil
 }
 
+func (plugin *rbdPlugin) GetVolumeBackendType(spec *volume.Spec) (string, error) {
+	backendType, err := getVolumeBackendType(spec)
+	if err != nil {
+		return BACKEND_TYPE_KRBD, err
+	}
+	return backendType, nil
+}
+
 func (plugin *rbdPlugin) CanSupport(spec *volume.Spec) bool {
 	if (spec.Volume != nil && spec.Volume.RBD == nil) || (spec.PersistentVolume != nil && spec.PersistentVolume.Spec.RBD == nil) {
 		return false
 	}
-
 	return true
 }
 
@@ -185,7 +197,7 @@ func (plugin *rbdPlugin) createMounterFromVolumeSpecAndPod(spec *volume.Spec, po
 		Keyring:     keyring,
 		Secret:      secret,
 		fsType:      fstype,
-		backendType: backendType,
+		BackendType: backendType,
 	}, nil
 }
 
@@ -602,8 +614,8 @@ func (c *rbdUnmounter) TearDownAt(dir string) error {
 }
 
 func (plugin *rbdPlugin) execCommandStdOut(command string, args []string) ([]byte, error) {
-	cmd := plugin.exe.Command(command, args...)
-	return cmd.Output()
+	exec := plugin.host.GetExec(plugin.GetPluginName())
+	return exec.Run(command, args...)
 }
 
 func getVolumeSourceMonitors(spec *volume.Spec) ([]string, error) {

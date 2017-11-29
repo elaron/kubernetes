@@ -34,8 +34,8 @@ type RBDNbd struct {
 func (rk *RBDNbd) IsSupported(plugin *rbdPlugin) bool {
 	// rbd-nbd might not be installed in a system. In such situation we'll fallback
 	// to krbd. See createDiskMapper() in rbd_util.go
-	exec := plugin.host.GetExec(plugin.GetPluginName())
-	if _, err := exec.Run("rbd-nbd", []string{"list-mapped"}); err != nil {
+	_, err := plugin.execCommandStdOut("rbd-nbd", []string{"list-mapped"})
+	if err != nil {
 		return false
 	}
 	return true
@@ -45,7 +45,7 @@ func (rk *RBDNbd) MapDisk(b rbdMounter) (string, error) {
 	var output []byte
 
 	// modprobe
-	_, err = b.plugin.execCommand("modprobe", []string{"nbd"})
+	_, err = b.plugin.execCommandStdOut("modprobe", []string{"nbd"})
 	if err != nil {
 		return "", fmt.Errorf("rbd: failed to modprobe nbd error:%v", err)
 	}
@@ -61,6 +61,7 @@ func (rk *RBDNbd) MapDisk(b rbdMounter) (string, error) {
 		lockSpec = "--exclusive"
 	}
 
+	var secret_opt []string
 	if b.Secret != "" {
 		secret_opt = []string{"--key=" + b.Secret}
 	} else {
@@ -77,8 +78,7 @@ func (rk *RBDNbd) MapDisk(b rbdMounter) (string, error) {
 		glog.V(1).Infof("rbd(nbd): map mon %s", mon)
 		args := []string{"map", imgSpec, "--id", b.Id, "-m", mon, lockSpec}
 		args = append(args, secret_opt...)
-		cmd, err = b.exec.Run("rbd-nbd", args...)
-		output = string(cmd)
+		output, err := b.exec.Run("rbd-nbd", args...)
 		if err == nil {
 			break
 		}
@@ -89,14 +89,14 @@ func (rk *RBDNbd) MapDisk(b rbdMounter) (string, error) {
 		return "", fmt.Errorf("rbd: map failed %v %s", err, string(output))
 	}
 
-	devicePath := strings.TrimSpace(string(output[:]))
+	devicePath := strings.TrimSpace(string(output))
 	return devicePath, nil
 }
 
 func (rk *RBDNbd) UnmapDisk(plugin *rbdPlugin, device string) error {
 	// rbd unmap
 	exec := plugin.host.GetExec(plugin.GetPluginName())
-	_, err := exec.Run("rbd-nbd", []string{"unmap", device})
+	_, err := exec.Run("rbd-nbd", "unmap", device)
 	if err != nil {
 		return fmt.Errorf("rbd: failed to unmap device %s:Error: %v", device, err)
 	}
