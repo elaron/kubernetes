@@ -1110,6 +1110,10 @@ type RBDPersistentVolumeSource struct {
 	// the ReadOnly setting in VolumeMounts.
 	// +optional
 	ReadOnly bool
+	// Optional: BackendType is client type to use for mapping RBDImage to a block device,
+	// default is "krbd".
+	// +optional
+	BackendType string
 }
 
 // Represents a cinder volume resource in Openstack. A Cinder volume
