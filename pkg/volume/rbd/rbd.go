@@ -18,6 +18,7 @@ package rbd
 
 import (
 	"fmt"
+	"math/rand"
 	dstrings "strings"
 
 	"github.com/golang/glog"
@@ -98,14 +99,6 @@ func (plugin *rbdPlugin) GetVolumeName(spec *volume.Spec) (string, error) {
 		"%v:%v",
 		mon,
 		img), nil
-}
-
-func (plugin *rbdPlugin) GetVolumeBackendType(spec *volume.Spec) (string, error) {
-	backendType, err := getVolumeBackendType(spec)
-	if err != nil {
-		return BACKEND_TYPE_KRBD, err
-	}
-	return backendType, nil
 }
 
 func (plugin *rbdPlugin) CanSupport(spec *volume.Spec) bool {
@@ -613,9 +606,36 @@ func (c *rbdUnmounter) TearDownAt(dir string) error {
 	return nil
 }
 
-func (plugin *rbdPlugin) execCommandStdOut(command string, args []string) ([]byte, error) {
+func (plugin *rbdPlugin) execLocalCommand(command string, args []string) ([]byte, error) {
 	exec := plugin.host.GetExec(plugin.GetPluginName())
 	return exec.Run(command, args...)
+}
+
+func (plugin *rbdPlugin) execClusterCommand(mons []string, command string, args []string)(output []byte, err error) {
+	l := len(mons)
+	// avoid mount storm, pick a host randomly
+	start := rand.Int() % l
+	// iterate all hosts until mount succeeds.
+	for i := start; i < start+l; i++ {
+		mon := mons[i%l]
+		glog.V(1).Infof("%s mon %s", command, mon)
+		newArgs := append(args, "-m", mon)
+		output, err = plugin.execLocalCommand(command, newArgs)
+		if err == nil {
+			return output, nil
+		}
+
+		glog.V(1).Infof("%s %s error %v %s", command, args, err, string(output))
+	}
+	return output, err
+}
+
+func (plugin *rbdPlugin) modprobeKernelModule(moduleName string) error{
+	_, err := plugin.execLocalCommand("modprobe", []string{moduleName})
+	if err != nil {
+		glog.Warningf("rbd: failed to load %s kernel module:%v", moduleName, err)
+	}
+	return err
 }
 
 func getVolumeSourceMonitors(spec *volume.Spec) ([]string, error) {

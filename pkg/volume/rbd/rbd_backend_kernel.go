@@ -38,10 +38,11 @@ const (
 
 // IsSupported show whether we have the kernel rbd plugin available or not
 func (rk *RBDKernel) IsSupported(plugin *rbdPlugin) bool {
-	exec := plugin.host.GetExec(plugin.GetPluginName())
-	if _, err := exec.Run("modprobe", "rbd"); err != nil {
+	_, err := plugin.execLocalCommand("modprobe", []string{"rbd"})
+	if err != nil {
 		return false
 	}
+
 	if _, err := os.Stat("/sys/bus/rbd/devices"); os.IsNotExist(err) {
 		return false
 	}
@@ -94,53 +95,43 @@ type RBDKernel struct {
 }
 
 func (rk *RBDKernel) MapDisk(b rbdMounter) (string, error) {
-	var output []byte
 
 	devicePath, found := waitForPath(b.Pool, b.Image, 1)
+	if true == found {
+		return devicePath, nil
+	}
+
+	// modprobe
+	err := b.plugin.modprobeKernelModule("rbd")
+	if nil != err {
+		return "", err
+	}
+
+	// Currently, we don't acquire advisory lock on image, but for backward
+	// compatibility, we need to check if the image is being used by nodes running old kubelet.
+	found, rbdOutput, err := rk.rbdStatus(&b)
+	if err != nil {
+		return "", fmt.Errorf("error: %v, rbd output: %v", err, rbdOutput)
+	}
+	if found {
+		glog.Infof("rbd image %s/%s is still being used ", b.Pool, b.Image)
+		return "", fmt.Errorf("rbd image %s/%s is still being used. rbd output: %s", b.Pool, b.Image, rbdOutput)
+	}
+	args :=[]string{"map", b.Image, "--pool", b.Pool, "--id", b.Id}
+	if b.Secret != "" {
+		args = append(args, "--key="+b.Secret)
+	} else {
+		args = append(args, "-k", b.Keyring)
+	}
+
+	output, err := b.plugin.execClusterCommand(b.Mon, "rbd", args)
+	if err != nil {
+		return "", fmt.Errorf("rbd: map failed %v, rbd output: %s", err, string(output))
+	}
+
+	devicePath, found = waitForPath(b.Pool, b.Image, 10)
 	if !found {
-		_, err := b.exec.Run("modprobe", "rbd")
-		if err != nil {
-			glog.Warningf("rbd: failed to load rbd kernel module:%v", err)
-		}
-
-		// Currently, we don't acquire advisory lock on image, but for backward
-		// compatibility, we need to check if the image is being used by nodes running old kubelet.
-		found, rbdOutput, err := rk.rbdStatus(&b)
-		if err != nil {
-			return "", fmt.Errorf("error: %v, rbd output: %v", err, rbdOutput)
-		}
-		if found {
-			glog.Infof("rbd image %s/%s is still being used ", b.Pool, b.Image)
-			return "", fmt.Errorf("rbd image %s/%s is still being used. rbd output: %s", b.Pool, b.Image, rbdOutput)
-		}
-
-		// rbd map
-		l := len(b.Mon)
-		// avoid mount storm, pick a host randomly
-		start := rand.Int() % l
-		// iterate all hosts until mount succeeds.
-		for i := start; i < start+l; i++ {
-			mon := b.Mon[i%l]
-			glog.V(1).Infof("rbd: map mon %s", mon)
-			if b.Secret != "" {
-				output, err = b.exec.Run("rbd",
-					"map", b.Image, "--pool", b.Pool, "--id", b.Id, "-m", mon, "--key="+b.Secret)
-			} else {
-				output, err = b.exec.Run("rbd",
-					"map", b.Image, "--pool", b.Pool, "--id", b.Id, "-m", mon, "-k", b.Keyring)
-			}
-			if err == nil {
-				break
-			}
-			glog.V(1).Infof("rbd: map error %v, rbd output: %s", err, string(output))
-		}
-		if err != nil {
-			return "", fmt.Errorf("rbd: map failed %v, rbd output: %s", err, string(output))
-		}
-		devicePath, found = waitForPath(b.Pool, b.Image, 10)
-		if !found {
-			return "", fmt.Errorf("Could not map image %s/%s, Timeout after 10s", b.Pool, b.Image)
-		}
+		return "", fmt.Errorf("Could not map image %s/%s, Timeout after 10s", b.Pool, b.Image)
 	}
 
 	return devicePath, nil
@@ -148,8 +139,7 @@ func (rk *RBDKernel) MapDisk(b rbdMounter) (string, error) {
 
 func (rk *RBDKernel) UnmapDisk(plugin *rbdPlugin, device string) error {
 	// rbd unmap
-	exec := plugin.host.GetExec(plugin.GetPluginName())
-	output, err := exec.Run("rbd", "unmap", device)
+	output, err := plugin.execLocalCommand("rbd", []string{"unmap", device})
 	if err != nil {
 		return rbdErrors(err, fmt.Errorf("rbd: failed to unmap device %s, error %v, rbd output: %v", device, err, output))
 	}

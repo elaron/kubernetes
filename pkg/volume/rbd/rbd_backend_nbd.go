@@ -20,7 +20,6 @@ package rbd
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
 
 	"github.com/golang/glog"
@@ -34,57 +33,39 @@ type RBDNbd struct {
 func (rk *RBDNbd) IsSupported(plugin *rbdPlugin) bool {
 	// rbd-nbd might not be installed in a system. In such situation we'll fallback
 	// to krbd. See createDiskMapper() in rbd_util.go
-	_, err := plugin.execCommandStdOut("rbd-nbd", []string{"list-mapped"})
+	_, err := plugin.execLocalCommand("rbd-nbd", []string{"list-mapped"})
 	if err != nil {
 		return false
 	}
 	return true
 }
 func (rk *RBDNbd) MapDisk(b rbdMounter) (string, error) {
-	var err error
-	var output []byte
-
 	// modprobe
-	_, err = b.plugin.execCommandStdOut("modprobe", []string{"nbd"})
-	if err != nil {
-		return "", fmt.Errorf("rbd: failed to modprobe nbd error:%v", err)
+	err := b.plugin.modprobeKernelModule("nbd")
+	if nil != err {
+		return "", err
 	}
 
 	// TODO: we might avoid mapping the same image twice by examining  sysfs entires.
 	// NBD exposes /sys/block/nbd<num>/pid containing a PID of an user-space adapter.
 	// Having this information allow us to match /proc/<pid>/cmdline against the imgSpec.
+
+	//prepare command arguments
 	imgSpec := b.Pool + "/" + b.Image
+	args := []string{"map", imgSpec, "--id", b.Id}
 
 	// no need to fence readOnly
-	var lockSpec string
 	if !(&b).GetAttributes().ReadOnly {
-		lockSpec = "--exclusive"
+		args = append(args, "--exclusive")
 	}
 
-	var secret_opt []string
 	if b.Secret != "" {
-		secret_opt = []string{"--key=" + b.Secret}
+		args = append(args, "--key"+b.Secret)
 	} else {
-		secret_opt = []string{"-k", b.Keyring}
+		args = append(args, "-k=",b.Keyring)
 	}
 
-	// rbd map
-	l := len(b.Mon)
-	// avoid mount storm, pick a host randomly
-	start := rand.Int() % l
-	// iterate all hosts until mount succeeds.
-	for i := start; i < start+l; i++ {
-		mon := b.Mon[i%l]
-		glog.V(1).Infof("rbd(nbd): map mon %s", mon)
-		args := []string{"map", imgSpec, "--id", b.Id, "-m", mon, lockSpec}
-		args = append(args, secret_opt...)
-		output, err := b.exec.Run("rbd-nbd", args...)
-		if err == nil {
-			break
-		}
-
-		glog.V(1).Infof("rbd(nbd): map error %v %s", err, string(output))
-	}
+	output, err := b.plugin.execClusterCommand(b.Mon, "rbd-nbd", args)
 	if err != nil {
 		return "", fmt.Errorf("rbd: map failed %v %s", err, string(output))
 	}
@@ -95,8 +76,7 @@ func (rk *RBDNbd) MapDisk(b rbdMounter) (string, error) {
 
 func (rk *RBDNbd) UnmapDisk(plugin *rbdPlugin, device string) error {
 	// rbd unmap
-	exec := plugin.host.GetExec(plugin.GetPluginName())
-	_, err := exec.Run("rbd-nbd", "unmap", device)
+	_, err := plugin.execLocalCommand("rbd-nbd", []string{"unmap", device})
 	if err != nil {
 		return fmt.Errorf("rbd: failed to unmap device %s:Error: %v", device, err)
 	}
