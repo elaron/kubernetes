@@ -4205,6 +4205,7 @@ func autoConvert_v1_RBDPersistentVolumeSource_To_core_RBDPersistentVolumeSource(
 	out.Keyring = in.Keyring
 	out.SecretRef = (*core.SecretReference)(unsafe.Pointer(in.SecretRef))
 	out.ReadOnly = in.ReadOnly
+	out.BackendType = in.BackendType
 	return nil
 }
 
@@ -4222,6 +4223,7 @@ func autoConvert_core_RBDPersistentVolumeSource_To_v1_RBDPersistentVolumeSource(
 	out.Keyring = in.Keyring
 	out.SecretRef = (*v1.SecretReference)(unsafe.Pointer(in.SecretRef))
 	out.ReadOnly = in.ReadOnly
+	out.BackendType = in.BackendType
 	return nil
 }
 
@@ -4239,6 +4241,7 @@ func autoConvert_v1_RBDVolumeSource_To_core_RBDVolumeSource(in *v1.RBDVolumeSour
 	out.Keyring = in.Keyring
 	out.SecretRef = (*core.LocalObjectReference)(unsafe.Pointer(in.SecretRef))
 	out.ReadOnly = in.ReadOnly
+	out.BackendType = in.BackendType
 	return nil
 }
 
@@ -4256,6 +4259,7 @@ func autoConvert_core_RBDVolumeSource_To_v1_RBDVolumeSource(in *core.RBDVolumeSo
 	out.Keyring = in.Keyring
 	out.SecretRef = (*v1.LocalObjectReference)(unsafe.Pointer(in.SecretRef))
 	out.ReadOnly = in.ReadOnly
+	out.BackendType = in.BackendType
 	return nil
 }
 

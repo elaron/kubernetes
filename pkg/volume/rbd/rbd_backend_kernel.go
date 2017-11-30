@@ -24,7 +24,6 @@ package rbd
 import (
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
 	"strings"

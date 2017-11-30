@@ -24,7 +24,6 @@ package rbd
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -36,8 +35,8 @@ import (
 	"k8s.io/api/core/v1"
 	fileutil "k8s.io/kubernetes/pkg/util/file"
 	"k8s.io/kubernetes/pkg/volume"
+	"k8s.io/kubernetes/pkg/util/node"
 	volutil "k8s.io/kubernetes/pkg/volume/util"
-	"errors"
 )
 
 const (
