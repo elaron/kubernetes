@@ -116,7 +116,7 @@ func (rk *RBDKernel) MapDisk(b rbdMounter) (string, error) {
 		glog.Infof("rbd image %s/%s is still being used ", b.Pool, b.Image)
 		return "", fmt.Errorf("rbd image %s/%s is still being used. rbd output: %s", b.Pool, b.Image, rbdOutput)
 	}
-	args :=[]string{"map", b.Image, "--pool", b.Pool, "--id", b.Id}
+	args := []string{"map", b.Image, "--pool", b.Pool, "--id", b.Id}
 	if b.Secret != "" {
 		args = append(args, "--key="+b.Secret)
 	} else {

@@ -2,7 +2,7 @@
   "swagger": "2.0",
   "info": {
    "title": "Kubernetes",
-   "version": "v1.10.0"
+   "version": "v1.9.0"
   },
   "paths": {
    "/api/": {
@@ -76701,6 +76701,10 @@
      "image"
     ],
     "properties": {
+     "backendType": {
+      "description": "Optional: BackendType is client type to use for mapping RBDImage to a block device, default is \"krbd\". Tip: Ensure that the backend is supported by the host operating system. Examples: \"krbd\", \"rbd-nbd\". Implicitly inferred to be \"krbd\" if unspecified. More info: http://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it",
+      "type": "string"
+     },
      "fsType": {
       "description": "Filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#rbd",
       "type": "string"
@@ -76745,6 +76749,10 @@
      "image"
     ],
     "properties": {
+     "backendType": {
+      "description": "Optional: BackendType is client type to use for mapping RBDImage to a block device, default is \"krbd\". Tip: Ensure that the backend is supported by the host operating system. Examples: \"krbd\", \"rbd-nbd\". Implicitly inferred to be \"krbd\" if unspecified. More info: http://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it",
+      "type": "string"
+     },
      "fsType": {
       "description": "Filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#rbd",
       "type": "string"

@@ -42,7 +42,7 @@ var (
 
 var (
 	BACKEND_TYPE_KRBD = "krbd"
-	BACKEND_TYPE_NBD = "nbd"
+	BACKEND_TYPE_NBD  = "nbd"
 )
 
 // This is the primary entrypoint for volume plugins.
@@ -611,7 +611,7 @@ func (plugin *rbdPlugin) execLocalCommand(command string, args []string) ([]byte
 	return exec.Run(command, args...)
 }
 
-func (plugin *rbdPlugin) execClusterCommand(mons []string, command string, args []string)(output []byte, err error) {
+func (plugin *rbdPlugin) execClusterCommand(mons []string, command string, args []string) (output []byte, err error) {
 	l := len(mons)
 	// avoid mount storm, pick a host randomly
 	start := rand.Int() % l
@@ -630,7 +630,7 @@ func (plugin *rbdPlugin) execClusterCommand(mons []string, command string, args 
 	return output, err
 }
 
-func (plugin *rbdPlugin) modprobeKernelModule(moduleName string) error{
+func (plugin *rbdPlugin) modprobeKernelModule(moduleName string) error {
 	_, err := plugin.execLocalCommand("modprobe", []string{moduleName})
 	if err != nil {
 		glog.Warningf("rbd: failed to load %s kernel module:%v", moduleName, err)
