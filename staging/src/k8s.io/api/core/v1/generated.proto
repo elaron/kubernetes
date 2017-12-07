@@ -3344,6 +3344,14 @@ message RBDPersistentVolumeSource {
   // More info: https://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it
   // +optional
   optional bool readOnly = 8;
+
+  // Optional: BackendType is client type to use for mapping RBDImage to a block device,
+  // default is "krbd".
+  // Tip: Ensure that the backend is supported by the host operating system.
+  // Examples: "krbd", "rbd-nbd". Implicitly inferred to be "krbd" if unspecified.
+  // More info: http://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it
+  // +optional
+  optional string backendType = 9;
 }
 
 // Represents a Rados Block Device mount that lasts the lifetime of a pod.
@@ -3395,6 +3403,14 @@ message RBDVolumeSource {
   // More info: https://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it
   // +optional
   optional bool readOnly = 8;
+
+  // Optional: BackendType is client type to use for mapping RBDImage to a block device,
+  // default is "krbd".
+  // Tip: Ensure that the backend is supported by the host operating system.
+  // Examples: "krbd", "rbd-nbd". Implicitly inferred to be "krbd" if unspecified.
+  // More info: http://releases.k8s.io/HEAD/examples/volumes/rbd/README.md#how-to-use-it
+  // +optional
+  optional string backendType = 9;
 }
 
 // RangeAllocation is not a public type.

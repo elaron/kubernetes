@@ -13,9 +13,9 @@ go_library(
         "disk_manager.go",
         "doc.go",
         "rbd.go",
-        "rbd_util.go",
         "rbd_backend_kernel.go",
         "rbd_backend_nbd.go",
+        "rbd_util.go",
     ],
     importpath = "k8s.io/kubernetes/pkg/volume/rbd",
     deps = [
