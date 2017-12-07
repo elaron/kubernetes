@@ -34,8 +34,8 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	fileutil "k8s.io/kubernetes/pkg/util/file"
-	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/util/node"
+	"k8s.io/kubernetes/pkg/volume"
 	volutil "k8s.io/kubernetes/pkg/volume/util"
 )
 
@@ -116,9 +116,9 @@ func rbdErrors(runErr, resultErr error) error {
 func cleanUpOrphanLock(b rbdMounter, orphanLock string) {
 
 	args := []string{"lock", "remove", b.Image, "--pool", b.Pool, "--id", b.Id}
-	if "" != b.Secret{
-		args = append(args, "--key=" + b.Secret)
-	}else{
+	if "" != b.Secret {
+		args = append(args, "--key="+b.Secret)
+	} else {
 		args = append(args, "-k", b.Keyring)
 	}
 
@@ -128,7 +128,7 @@ func cleanUpOrphanLock(b rbdMounter, orphanLock string) {
 			lockInfo := strings.Split(v[0], " ")
 			if len(lockInfo) > 2 {
 				args = append(args, lockInfo[1], lockInfo[0])
-				output, err := b.plugin.execClusterCommand(b.Mon,"rbd", args)
+				output, err := b.plugin.execClusterCommand(b.Mon, "rbd", args)
 				glog.Infof("remove orphaned locker %s from client %s: err %v, rbd output: %s", lockInfo[1], lockInfo[0], err, string(output))
 			}
 		}
@@ -137,16 +137,16 @@ func cleanUpOrphanLock(b rbdMounter, orphanLock string) {
 
 func addLockToImage(b rbdMounter, lock_id string) error {
 	args := []string{"lock", "add", b.Image, lock_id, "--pool", b.Pool, "--id", b.Id}
-	if "" != b.Secret{
-		args = append(args, "--key=" + b.Secret)
-	}else{
+	if "" != b.Secret {
+		args = append(args, "--key="+b.Secret)
+	} else {
 		args = append(args, "-k", b.Keyring)
 	}
 
 	output, err := b.plugin.execClusterCommand(b.Mon, "rbd", args)
 	if err == nil {
 		glog.V(4).Infof("rbd: successfully add lock (locker_id: %s) on image: %s/%s with id %s , %s", lock_id, b.Pool, b.Image, b.Id, string(output))
-	}else{
+	} else {
 		glog.V(4).Infof("rbd: failed of adding lock (locker_id: %s) on image: %s/%s with id %s , %v", lock_id, b.Pool, b.Image, b.Id, err)
 	}
 	return err
@@ -158,23 +158,23 @@ func removeLockFromImage(b rbdMounter, lock_id, locker string) error {
 	}
 
 	args := []string{"lock", "remove", b.Image, lock_id, locker, "--pool", b.Pool, "--id", b.Id}
-	if "" != b.Secret{
-		args = append(args, "--key=" + b.Secret)
-	}else{
+	if "" != b.Secret {
+		args = append(args, "--key="+b.Secret)
+	} else {
 		args = append(args, "-k", b.Keyring)
 	}
 
-	output, err := b.plugin.execClusterCommand (b.Mon,"rbd", args)
+	output, err := b.plugin.execClusterCommand(b.Mon, "rbd", args)
 	if err == nil {
 		glog.V(4).Infof("rbd: successfully remove lock (locker_id: %s) on image: %s/%s with id %s, %s", lock_id, b.Pool, b.Image, b.Id, string(output))
-	}else{
+	} else {
 		glog.V(4).Infof("rbd: failed of remove lock (locker_id: %s) on image: %s/%s with id %s, %v", lock_id, b.Pool, b.Image, b.Id, err)
 	}
 	return err
 }
 
 // defencing, find locker name
-func getLockerName(imageLockInfo,lock_id  string) string {
+func getLockerName(imageLockInfo, lock_id string) string {
 	//rbd lock list's output looks like followed:
 	// rbd lock list test0 --pool rbd
 	//There is 1 exclusive lock on this image.
@@ -206,7 +206,7 @@ func (util *RBDUtil) rbdLock(b rbdMounter, lock bool) error {
 	//get image lock info
 	args := []string{"lock", "list", b.Image, "--pool", b.Pool, "--id", b.Id}
 	if b.Secret != "" {
-		args = append(args, "--key=" + b.Secret)
+		args = append(args, "--key="+b.Secret)
 	} else {
 		args = append(args, "-k", b.Keyring)
 	}
@@ -244,7 +244,7 @@ func (util *RBDUtil) rbdLock(b rbdMounter, lock bool) error {
 
 	//trying to remove lock from image
 	if false == lock {
-		locker:= getLockerName(imageLockInfo, lock_id)
+		locker := getLockerName(imageLockInfo, lock_id)
 
 		//remove a lock if found: rbd lock remove
 		return removeLockFromImage(b, lock_id, locker)
@@ -280,7 +280,7 @@ func (util *RBDUtil) AttachDisk(b rbdMounter) (string, error) {
 }
 
 func getBackendTypeByDevice(device string) string {
-	if true == strings.Contains(device, "nbd"){
+	if true == strings.Contains(device, "nbd") {
 		return BACKEND_TYPE_NBD
 	}
 	return BACKEND_TYPE_KRBD
@@ -395,9 +395,9 @@ func (util *RBDUtil) DeleteImage(p *rbdVolumeDeleter) error {
 		return fmt.Errorf("rbd image %s/%s is still being used, rbd output: %v", p.rbdMounter.Pool, p.rbdMounter.Image, rbdOutput)
 	}
 
-	args := []string{"rm", p.rbdMounter.Image, "--pool", p.rbdMounter.Pool, "--id", p.rbdMounter.adminId, "--key="+p.rbdMounter.adminSecret}
+	args := []string{"rm", p.rbdMounter.Image, "--pool", p.rbdMounter.Pool, "--id", p.rbdMounter.adminId, "--key=" + p.rbdMounter.adminSecret}
 	output, err := p.plugin.execClusterCommand(p.rbdMounter.Mon, "rbd", args)
-	if nil != err{
+	if nil != err {
 		return fmt.Errorf("failed to delete rbd image %s, error %v, rbd output: %v", p.rbdMounter.Image, err, string(output))
 	}
 	return nil
@@ -424,13 +424,13 @@ func (util *RBDUtil) rbdStatus(b *rbdMounter) (bool, string, error) {
 	if "" == b.adminId {
 		id = b.Id
 		secret = b.Secret
-	}else{
+	} else {
 		id = b.adminId
 		secret = b.adminSecret
 	}
 
 	glog.V(4).Infof("rbd: status %s using pool %s id %s key %s", b.Image, b.Pool, id, secret)
-	args := []string{"status", b.Image, "--pool", b.Pool, "--id", id, "--key="+secret}
+	args := []string{"status", b.Image, "--pool", b.Pool, "--id", id, "--key=" + secret}
 	out, err := b.plugin.execClusterCommand(b.Mon, "rbd", args)
 	output := string(out)
 
